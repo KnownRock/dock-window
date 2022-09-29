@@ -1,0 +1,22 @@
+{
+  "main_is_relative_path": true,
+  "main_path": "C:\\Windows\\notepad.exe",
+  "main_args": "",
+
+  "main_window_handler_is_relative_path": true,
+  "main_window_handler_path": "C:\\Windows\\notepad.exe",
+  "main_window_handler_args": "",
+
+  "dock_is_relative_path": true,
+  "dock_path": "C:\\Windows\\notepad.exe",
+  "dock_args": "",
+
+  "dock_location": "left center",
+
+  "dock_offset_x": 0,
+  "dock_offset_y": 0,
+
+  "wait_time": 0.1,
+
+  "run_command_with_shell": true
+}
