@@ -4,7 +4,6 @@ import sys
 from pathlib import Path
 
 import argparse
-from this import d
 
 
 def getConfig():

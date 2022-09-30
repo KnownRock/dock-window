@@ -1,3 +1,5 @@
+import signal
+import threading
 import win32.win32process as win32process
 import win32.win32process as process
 import win32.win32gui as win32gui
@@ -9,7 +11,7 @@ from time import sleep
 from threading import Thread
 from win32.win32gui import GetWindowRect, GetWindowText
 from win32.win32api import CloseHandle, OpenProcess
-
+# from signal import pthread_kill, SIGTSTP
 
 
 from config import getConfig
@@ -29,6 +31,7 @@ def isLiveProcess(processHandler):
 
 
 def initProcess(exePath, args=None):
+    print('initProcess', exePath, args)
 
     PORTABLE_APPLICATION_LOCATION = exePath
 
@@ -215,10 +218,31 @@ def cancelListenerTheads(listenerThreadIds):
         PostThreadMessage(listenerThreadId)
 
 def killProcess(processHandler):
+    print('kill process:' + str(processHandler))
     ph =  OpenProcess(0x0001, False, processHandler); 
     process.TerminateProcess(ph,1)
     CloseHandle(ph)
 
+
+
+
+class TraceThread(threading.Thread): 
+    def __init__(self, *args, **keywords): 
+        threading.Thread.__init__(self, *args, **keywords) 
+        self.killed = False
+    def start(self): 
+        self._run = self.run 
+        self.run = self.settrace_and_run
+        threading.Thread.start(self) 
+    def settrace_and_run(self): 
+        sys.settrace(self.globaltrace) 
+        self._run()
+    def globaltrace(self, frame, event, arg): 
+        return self.localtrace if event == 'call' else None
+    def localtrace(self, frame, event, arg): 
+        if self.killed and event == 'line': 
+            raise SystemExit() 
+        return self.localtrace 
 
 if __name__ == "__main__":
     config = getConfig()
@@ -252,47 +276,69 @@ if __name__ == "__main__":
     dockItemHwmd = getWindowHwndByProcessHandler(dockItemProcessHandler)
     print('dockItemHwmd:' + str(dockItemHwmd))
     
-    mainWindowHandler = initProcess(
-        config["main_window_handler_path"] , 
-        mainWindowHandlerArgs 
-            .replace('{main_hwmd}', str(mainHwmd))
-            .replace('{dock_hwmd}', str(dockItemHwmd))
+    # mainWindowHandler = initProcess(
+    #     config["main_window_handler_path"] , 
+    #     mainWindowHandlerArgs 
+    #         .replace('{main_hwmd}', str(mainHwmd))
+    #         .replace('{dock_hwmd}', str(dockItemHwmd))
+    #     )
+    # print('mainWindowHandler:' + str(mainWindowHandler))
+    
+    def setMainWindowHandler(pid):
+        global mainWindowHandler
+        mainWindowHandler = pid
+    mainWindowHandler = -1
+    def tf():
+        # global mainWindowHandler
+        print(config["main_window_handler_path"] )
+        mainWindowHandler = os.system(
+            config["main_window_handler_path"] 
+            + ' ' 
+            + mainWindowHandlerArgs
+                .replace('{main_hwmd}', str(mainHwmd))
+                .replace('{dock_hwmd}', str(dockItemHwmd))
         )
-    print('mainWindowHandler:' + str(mainWindowHandler))
+        print('mainWindowHandler:' + str(mainWindowHandler))
+        setMainWindowHandler(mainWindowHandler)
+    t = Thread(target=tf)
+    # t.daemon = True
+    t.start()
+    # t.join()
 
 
     dock_location_x, dock_location_y = config["dock_location"].split(' ')
     
 
     def onWindowChange(hwnd):
-        print('window size change')
+        
         x, y, xpw, yph = getHwndRect(dockItemHwmd)
+        main_x, main_y, main_xpw, main_yph = getHwndRect(mainHwmd)
+        
+        
+        print(f'window size change [{x} {y} {xpw} {yph}] [{main_x} {main_y} {main_xpw} {main_yph}]', end="\r")
         # some hack to make it work
         # keep the dock item with same z order as main window
-        dock_left = xpw
-        dock_top = yph
+        dock_left = main_xpw
+        dock_top = main_y
         if(dock_location_x == 'left'):
-            main_x, main_y, main_xpw, main_yph = getHwndRect(mainHwmd)
             dock_width = xpw - x
             dock_left = main_x - dock_width
         if(dock_location_x == 'center'):
-            main_x, main_y, main_xpw, main_yph = getHwndRect(mainHwmd)
             dock_width = xpw - x
             dock_left = int(main_x + (main_xpw - main_x - dock_width) / 2)
         if(dock_location_x == 'right'):
-            dock_left = xpw
+            dock_left = main_xpw
             
         if(dock_location_y == 'top'):
-            main_x, main_y, main_xpw, main_yph = getHwndRect(mainHwmd)
             dock_height = yph - y
             dock_top = main_y - dock_height
         if(dock_location_y == 'center'):
-            main_x, main_y, main_xpw, main_yph = getHwndRect(mainHwmd)
             dock_height = yph - y
-            dock_top = int(main_y + (main_yph - main_y - dock_height) / 2)
-            
+            dock_top = int(main_y + (main_yph - main_y - dock_height) / 2)    
         if(dock_location_y == 'bottom'):
-            dock_top = yph
+            dock_top = main_yph
+            
+            
         
         
         moveHwnd(dockItemHwmd, -1, dock_left  + config["dock_offset_x"], dock_top + config["dock_offset_y"] , dockWidth , dockHeight , True)
@@ -312,6 +358,8 @@ if __name__ == "__main__":
         print('window close')
         if isLiveProcess(dockItemProcessHandler):
             killProcess(dockItemProcessHandler)
+        # if isLiveProcess(mainProcessHandler):
+        #     killProcess(mainProcessHandler)
         
 
     onWindowChange(mainHwmd)
@@ -340,9 +388,8 @@ if __name__ == "__main__":
         killProcess(mainProcessHandler)
         
     sleep(0.2)
-    if isLiveProcess(mainWindowHandler):
-        killProcess(mainWindowHandler)
-
-
-    sleep(1)
+    
+    # TODO: figure out how to kill the main window handler process
+    os.system('taskkill /F /T /PID ' + str(os.getpid()))
+    
     print('\nAll proc exited.\nGood bye.')
