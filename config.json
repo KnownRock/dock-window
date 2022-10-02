@@ -1,15 +1,15 @@
 {
   "main_is_relative_path": true,
   "main_path": "C:\\Windows\\notepad.exe",
-  "main_args": "",
+  "main_args": " C:\\files\\a.txt",
 
   "main_window_handler_is_relative_path": true,
   "main_window_handler_path": "C:\\Windows\\notepad.exe",
-  "main_window_handler_args": "",
+  "main_window_handler_args": " C:\\files\\a.txt",
 
   "dock_is_relative_path": true,
   "dock_path": "C:\\Windows\\notepad.exe",
-  "dock_args": "",
+  "dock_args": " C:\\files\\a.txt",
 
   "dock_location": "left center",
 

@@ -60,4 +60,6 @@ def getConfig():
         "main_window_handler_args": data["main_window_handler_args"],
 
         "run_command_with_shell": data["run_command_with_shell"],
+        
+        "hook": data.get("hook", '')
     }
